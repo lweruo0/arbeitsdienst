@@ -63,7 +63,7 @@ $pPreferences->read(); // Konfigurationsdaten auslesen
 $user = new User($gDb, $gProfileFields);
 
 // alle aktiven Mitglieder einlesen
-$members = list_members_new($getdatefilteractual, array(
+$members = list_members($getdatefilteractual, array(
     'FIRST_NAME',
     'LAST_NAME',
     'BIRTHDAY',
@@ -81,7 +81,7 @@ $membersworkinfo = list_members_workinfo($members, $getdatefilteractual);
 $sumworking = sum_working($membersworkinfo, $pPreferences->config['Stunden']['Kosten']);
 
 // Kontoinformationen jedes Mitgieds auslesen
-$membersaccount = list_members_new($getdatefilteractual, array(
+$membersaccount = list_members($getdatefilteractual, array(
     'WORKDUEDATE',
     'WORKSEQUENCETYPE',
     'SEQUENCETYPE' . ORG_ID,

@@ -176,30 +176,30 @@ function getsumallworkinghours($workingyear)
     return $sumall['sumall'];
 }
 
-// die Funktion gibt die Summe aller im Abrechnungsjahr geleisteten
-// Arbeitsstunden eines Mitglieds wieder
-// @param: $workingyear Abrechnungsjahr
-// $usr_id ID des Abgefragten Mitglieds
-// @return: Summe des Abrechnungsjahres in Stunden
-function getsumworkinghours($workingyear, $usr_id)
+
+function getallworkinghours($workingyear)
 {
     global $gDb;
 
-    $sql = "SELECT sum(pad_hours) as sumall FROM adm_user_arbeitsdienst
-            WHERE YEAR(pad_date) = '" . $workingyear . "'
-            AND pad_user_id = '" . $usr_id . "'";
+    $sql = "SELECT pad_user_id, COALESCE(SUM(pad_hours), 0) AS sumall
+            FROM ".TABLE_PREFIX."_user_arbeitsdienst
+            WHERE YEAR(pad_date) = :year
+            GROUP BY pad_user_id";
 
-    // $result = array();
-    $resultStatement = $gDb->query($sql);
-    $sumall = $resultStatement->fetch(PDO::FETCH_ASSOC);
-    if (isset($sumall['sumall']) && strlen($sumall['sumall']) > 0) {
-        return $sumall['sumall'];
-    } else {
-        return 0;
+    $stmt = $gDb->queryPrepared($sql, array(':year' => $workingyear));
+
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result = [];
+    foreach ($rows as $row) {
+        $result[(int)$row['pad_user_id']] = (float)$row['sumall'];
     }
 
-    // return $sumall['sumall'];
+    return $result;
 }
+
+
+
 
 function allerollen_einlesen($rollenwahl = '', $with_members = array())
 {
@@ -257,204 +257,105 @@ function list_members($calculationyear, $fields, $rols = array(), $conditions = 
     global $gDb, $gProfileFields;
 
     $members = array();
+    $fieldAliases = array();
+    $fieldSelects = array();
+    $fieldJoins = array();
+    $whereConditions = array();
     $calculationdate = date('Y-m-d', strtotime($calculationyear . '-12-31'));
 
-    $sql = 'SELECT DISTINCT mem_usr_id, mem_begin, mem_end
-            FROM ' . TBL_MEMBERS . ', ' . TBL_ROLES . ', ' . TBL_CATEGORIES . ' ';
+    foreach ($fields as $index => $data) {
+        $key = $data;
+        $usfId = (int) $gProfileFields->getProperty($data, 'usf_id');
 
-    if (is_string($rols)) {
-        $sql .= ' WHERE mem_rol_id = ' . getRole_IDPAD($rols) . ' ';
-    } elseif (is_int($rols) && ($rols == 0)) {
-        // nur aktive Mitglieder
-        $sql .= ' WHERE mem_begin <= \'' . $calculationdate . '\' ';
-        $sql .= ' AND mem_end >= \'' . $calculationdate . '\' ';
-    } elseif (is_int($rols) && ($rols == 1)) {
-        // nicht-aktive Mitglieder ALT:nur ehemalige Mitglieder
-        $sql .= ' WHERE ( (mem_begin > \'' . $calculationdate . '\') OR (mem_end < \'' . $calculationdate . '\') )';
-    } elseif (is_array($rols)) {
-        $firstpass = true;
-        foreach ($rols as $rol => $rol_switch) {
-            if ($firstpass) {
-                $sql .= ' WHERE (( ';
-            } else {
-                $sql .= ' OR ( ';
-            }
-            $sql .= 'mem_rol_id = ' . getRole_IDPAD($rol) . ' ';
-
-            if ($rol_switch == 0) {
-                // aktive Mitglieder
-                $sql .= ' AND mem_begin <= \'' . $calculationdate . '\' ';
-                $sql .= ' AND mem_end >= \'' . $calculationdate . '\' ';
-            } elseif ($rol_switch == 1) {
-                // nicht aktive Mitglieder ALT: ehemalige Mitglieder
-                $sql .= ' AND ( (mem_begin > \'' . $calculationdate . '\') OR (mem_end < \'' . $calculationdate . '\') )';
-            }
-            $sql .= ' ) ';
-            $firstpass = false;
+        if (substr($data, 0, 1) === 'p') {
+            $usfId = (int) substr($data, 1);
+            $key = (string) $usfId;
         }
-        $sql .= ' ) ';
+
+        $alias = 'usd_field_' . $index;
+        $fieldAliases[$alias] = $key;
+        $fieldSelects[] = ', ' . $alias . '.usd_value AS ' . $alias;
+        $fieldJoins[] = ' LEFT JOIN ' . TBL_USER_DATA . ' AS ' . $alias . '
+                         ON ' . $alias . '.usd_usr_id = mem.mem_usr_id
+                        AND ' . $alias . '.usd_usf_id = ' . $usfId;
     }
 
-    $sql .= $conditions;
-    $sql .= ' AND mem_rol_id = rol_id
-              AND rol_valid  = 1
-              AND rol_cat_id = cat_id
-              AND (  cat_org_id = ' . ORG_ID . '
-              OR cat_org_id IS NULL )
-              ORDER BY mem_usr_id ASC ';
+    if (is_string($rols) && strlen($rols) > 0) {
+        $whereConditions[] = 'mem.mem_rol_id = ' . getRole_IDPAD($rols);
+    } elseif (is_int($rols) && $rols === 0) {
+        $whereConditions[] = 'mem.mem_begin <= \'' . $calculationdate . '\'';
+        $whereConditions[] = 'mem.mem_end >= \'' . $calculationdate . '\'';
+    } elseif (is_int($rols) && $rols === 1) {
+        $whereConditions[] = '((mem.mem_begin > \'' . $calculationdate . '\') OR (mem.mem_end < \'' . $calculationdate . '\'))';
+    } elseif (is_array($rols) && count($rols) > 0) {
+        $roleConditions = array();
+
+        foreach ($rols as $rol => $rolSwitch) {
+            $singleRoleConditions = array(
+                'mem.mem_rol_id = ' . getRole_IDPAD($rol)
+            );
+
+            if ((int) $rolSwitch === 0) {
+                $singleRoleConditions[] = 'mem.mem_begin <= \'' . $calculationdate . '\'';
+                $singleRoleConditions[] = 'mem.mem_end >= \'' . $calculationdate . '\'';
+            } elseif ((int) $rolSwitch === 1) {
+                $singleRoleConditions[] = '((mem.mem_begin > \'' . $calculationdate . '\') OR (mem.mem_end < \'' . $calculationdate . '\'))';
+            }
+
+            $roleConditions[] = '(' . implode(' AND ', $singleRoleConditions) . ')';
+        }
+
+        if (count($roleConditions) > 0) {
+            $whereConditions[] = '(' . implode(' OR ', $roleConditions) . ')';
+        }
+    }
+
+    $conditions = trim($conditions);
+    if (strlen($conditions) > 0) {
+        $conditions = preg_replace('/^(AND|WHERE)\s+/i', '', $conditions);
+        if (strlen($conditions) > 0) {
+            $whereConditions[] = '(' . $conditions . ')';
+        }
+    }
+
+    $whereConditions[] = 'rol.rol_valid = 1';
+    $whereConditions[] = 'rol.rol_cat_id = cat.cat_id';
+    $whereConditions[] = '(cat.cat_org_id = ' . ORG_ID . ' OR cat.cat_org_id IS NULL)';
+
+    $sql = 'SELECT DISTINCT mem.mem_usr_id, mem.mem_begin, mem.mem_end'
+         . implode('', $fieldSelects) . '
+              FROM ' . TBL_MEMBERS . ' AS mem
+        INNER JOIN ' . TBL_ROLES . ' AS rol
+                ON mem.mem_rol_id = rol.rol_id
+        INNER JOIN ' . TBL_CATEGORIES . ' AS cat
+                ON rol.rol_cat_id = cat.cat_id'
+         . implode('', $fieldJoins);
+
+    if (count($whereConditions) > 0) {
+        $sql .= "\n             WHERE " . implode("\n               AND ", $whereConditions);
+    }
+
+    $sql .= "\n          ORDER BY mem.mem_usr_id ASC";
 
     $statement = $gDb->query($sql);
-    $anzahl_members = $statement -> rowCount();
-    while ($row = $statement->fetch()) {
-        // mem_begin und mem_end werden nur in der recalculation.php ausgewertet
-        // wird fuer anteilige Beitragsberechnung verwendet
-        $members[$row['mem_usr_id']] = array(
+    if ($statement === false) {
+        return $members;
+    }
+    while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
+        $memberId = (int) $row['mem_usr_id'];
+
+        $members[$memberId] = array(
             'mem_begin' => $row['mem_begin'],
             'mem_end' => $row['mem_end']
         );
-    }
 
-    foreach ($members as $member => $dummy) {
-        foreach ($fields as $field => $data) {
-            $key = $data;
-            $usfID = $gProfileFields->getProperty($data, 'usf_id');
-
-            if (substr($data, 0, 1) == 'p') {
-                $usfID = substr($data, 1);
-                $key = $usfID;
-            }
-
-            $sql = 'SELECT usd_value
-                      FROM ' . TBL_USER_DATA . '
-                     WHERE usd_usr_id = ' . $member . '
-                       AND usd_usf_id = ' . $usfID . ' ';
-            $statement = $gDb->query($sql);
-            $row = $statement->fetch();
-            if ($row == false)
-            {
-                $members[$member][$key] = '';
-            }
-            else
-            {
-                $members[$member][$key] = $row['usd_value'];
-            }
+        foreach ($fieldAliases as $alias => $key) {
+            $members[$memberId][$key] = isset($row[$alias]) ? $row[$alias] : '';
         }
     }
+
     return $members;
 }
-
-/*
- * Diese Funktion liefert als Rueckgabe die usr_ids von Rollenangehoerigen.<br/>
- * moegliche Aufrufe:<br/>
- * list_members (array('usf_name_intern1','usf_name_intern2'), array('Rollenname1' => Schalter aktiv/ehem) )<br/>
- * oder list_members (array('usf_name_intern1','usf_name_intern2'), 'Rollenname' )<br/>
- * oder list_members (array('usf_name_intern1','usf_name_intern2'), Schalter aktiv/ehem )<br/>
- * oder list_members (array('p1','p2'), Schalter aktiv/ehem )<br/>
- *
- * Schalter aktiv/ehem: 0 = aktive Mitglieder, 1 = ehemalige Mitglieder, ungleich 1 oder 0: alle Mitglieder <br/>
- *
- * Aufruf: z.B. list_members (array('FIRST_NAME','LAST_NAME'), array('Mitglied' => 0,'Administrator' => 0));
- *
- * @param array $fields Array mit usf_name_intern oder p+usfID, z.B. array('FIRST_NAME','p2')
- * @param $calculationyear Jahr, von der dem die Abrechnung gemacht wird
- * @param array/string/bool $rols Array mit Rollen, z.B. <br/>
- * array('Rollenname1' => Schalter aktiv/ehem) )<br/>
- * oder 'Rollenname' <br/>
- * oder Schalter aktiv/ehem <br/>
- * @param string $conditions SQL-String als zusaetzlicher Filter von $members, z.B. 'AND usd_usf_id = 78'
- * @return array $members
- */
-function list_members_new($calculationyear, $fields, $rols = array(), $conditions = '')
-{
-    global $gDb, $gProfileFields;
-
-    $members = array();
-    $calculationdate = date('Y-m-d', strtotime($calculationyear . '-12-31'));
-
-    $sql = 'SELECT DISTINCT mem_usr_id, mem_begin, mem_end
-            FROM ' . TBL_MEMBERS . ', ' . TBL_ROLES . ', ' . TBL_CATEGORIES . ' ';
-
-    if (is_string($rols)) {
-        $sql .= ' WHERE mem_rol_id = ' . getRole_IDPAD($rols) . ' ';
-    } elseif (is_int($rols) && ($rols == 0)) {
-        // nur aktive Mitglieder
-        $sql .= ' WHERE mem_begin <= \'' . $calculationdate . '\' ';
-        $sql .= ' AND mem_end >= \'' . $calculationdate . '\' ';
-    } elseif (is_int($rols) && ($rols == 1)) {
-        // nicht-aktive Mitglieder ALT:nur ehemalige Mitglieder
-        $sql .= ' WHERE ( (mem_begin > \'' . $calculationdate . '\') OR (mem_end < \'' . $calculationdate . '\') )';
-    } elseif (is_array($rols)) {
-        $firstpass = true;
-        foreach ($rols as $rol => $rol_switch) {
-            if ($firstpass) {
-                $sql .= ' WHERE (( ';
-            } else {
-                $sql .= ' OR ( ';
-            }
-            $sql .= 'mem_rol_id = ' . getRole_IDPAD($rol) . ' ';
-
-            if ($rol_switch == 0) {
-                // aktive Mitglieder
-                $sql .= ' AND mem_begin <= \'' . $calculationdate . '\' ';
-                $sql .= ' AND mem_end >= \'' . $calculationdate . '\' ';
-            } elseif ($rol_switch == 1) {
-                // nicht aktive Mitglieder ALT: ehemalige Mitglieder
-                $sql .= ' AND ( (mem_begin > \'' . $calculationdate . '\') OR (mem_end < \'' . $calculationdate . '\') )';
-            }
-            $sql .= ' ) ';
-            $firstpass = false;
-        }
-        $sql .= ' ) ';
-    }
-
-    $sql .= $conditions;
-    $sql .= ' AND mem_rol_id = rol_id
-              AND rol_valid  = 1
-              AND rol_cat_id = cat_id
-              AND (  cat_org_id = ' . ORG_ID . '
-              OR cat_org_id IS NULL )
-              ORDER BY mem_usr_id ASC ';
-
-    $statement = $gDb->query($sql);
-    $anzahl_members = $statement -> rowCount();
-    while ($row = $statement->fetch()) {
-        // mem_begin und mem_end werden nur in der recalculation.php ausgewertet
-        // wird fuer anteilige Beitragsberechnung verwendet
-        $members[$row['mem_usr_id']] = array(
-            'mem_begin' => $row['mem_begin'],
-            'mem_end' => $row['mem_end']
-        );
-    }
-
-    foreach ($members as $member => $dummy) {
-        foreach ($fields as $field => $data) {
-            $key = $data;
-            $usfID = $gProfileFields->getProperty($data, 'usf_id');
-
-            if (substr($data, 0, 1) == 'p') {
-                $usfID = substr($data, 1);
-                $key = $usfID;
-            }
-
-            $sql = 'SELECT usd_value
-                      FROM ' . TBL_USER_DATA . '
-                     WHERE usd_usr_id = ' . $member . '
-                       AND usd_usf_id = ' . $usfID . ' ';
-            $statement = $gDb->query($sql);
-            $row = $statement->fetch();
-            if ($row == false)
-            {
-                $members[$member][$key] = '';
-            }
-            else
-            {
-                $members[$member][$key] = $row['usd_value'];
-            }
-        }
-    }
-    return $members;
-}
-
 /*
  * Funktion liefert ein Array der Mitglieder mit Informationen zum geleisteten Arbeitsdienst im Abrechnungsjahr
  * @param array $members Informationen aller Mitglieder aus der Funktion list_members
@@ -474,30 +375,25 @@ function list_members_workinfo($members, $datefilteractual)
     $pPreferences = new ConfigTablePAD();
     $pPreferences->read(); // Konfigurationsdaten auslesen
 
+    $passive_roles = array();
+    foreach ($pPreferences->config['Ausnahme']['passiveRolle'] as $ausnahme => $data) {
+        $passive_roles[rolname($data)] = 0;
+    }
+    $passive_members = list_members($datefilteractual, 
+                                    array('FIRST_NAME', 'LAST_NAME'), 
+                                    $passive_roles,
+                                    );
+    $dt2 = new DateTime(date('d.m.Y', strtotime($datefilteractual . '-12-31')));
+
+    $allWorkingHours = getallworkinghours($datefilteractual);
+
+
     foreach ($members as $member => $memberdata) {
         // Alter jedes Mitglieds berechnen und im Array speichern
         $dt1 = new DateTime($memberdata['BIRTHDAY']);
-        $dt2 = new DateTime(date('d.m.Y', strtotime($datefilteractual . '-12-31')));
-
         $membersworkinfo[$member]['ALTER'] = $dt1->diff($dt2)->y;
 
-        // Soll-Arbeitsstunden und Passivmitgliedschaft ermitteln und im Array speichern
-        // ermitteln, ob mehrere Rollen eingetragen sind
-        $rolename = array();
-        foreach ($pPreferences->config['Ausnahme']['passiveRolle'] as $ausnahme => $data) {
-            $rolename[$ausnahme] = rolname($data);
-            $passiv = list_members_new($datefilteractual, array(
-                'FIRST_NAME',
-                'LAST_NAME'
-            ), array(
-                $rolename[$ausnahme] => 0
-            ), 'AND mem_usr_id = ' . $member);
-            IF (! empty($passiv)) {
-                // wird ein Eintrag gefunden --> Mitglied ist Beitragsbefreit --> Abbruch
-                break;
-            }
-        }
-        if (empty($passiv)) {
+        if (!isset($passive_members[$member])){
             $membersworkinfo[$member]['PASSIV'] = 'nein';
             if (($membersworkinfo[$member]['ALTER'] >= $pPreferences->config['Alter']['AGEBegin']) && ($membersworkinfo[$member]['ALTER'] < $pPreferences->config['Alter']['AGEEnd'])) {
                 if ($memberdata['GENDER'] == 1) {
@@ -516,9 +412,7 @@ function list_members_workinfo($members, $datefilteractual)
         }
 
         // geleistete Arbeitsstunden des Abrechnungsjahres ermitteln und im Array speichern
-        $membersworkinfo[$member]['Iststunden'] = 0;
-        $membersworkinfo[$member]['Iststunden'] = getsumworkinghours($datefilteractual, $member);
-
+        $membersworkinfo[$member]['Iststunden'] = $allWorkingHours [$member] ?? 0;
         // Differenz Ist zu Soll ermitteln und im Array speichern
         $membersworkinfo[$member]['Differenzstunden'] = ($membersworkinfo[$member]['Iststunden'] - $membersworkinfo[$member]['Sollstunden']);
 

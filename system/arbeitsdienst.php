@@ -164,9 +164,8 @@ $pPreferences = new ConfigTablePAD();
 $pPreferences->init(); // prüfen, ob die Tabelle adm_user_arbeitsdienst vorhanden ist
 $pPreferences->read(); // Konfigurationsdaten auslesen
 
-
 // alle aktiven Mitglieder einlesen
-$members = list_members_new($datefilteractual, 
+$members = list_members($datefilteractual, 
                         array(
                             'FIRST_NAME',
                             'LAST_NAME',
@@ -174,7 +173,6 @@ $members = list_members_new($datefilteractual,
                             'GENDER'), 
                         array('Mitglied' => 0));
 
-                     
 // Informationen aller Mitglieder zum Arbeitsdienst einslesen
 $membersworkinfo = list_members_workinfo($members, 
                                          $datefilteractual);
@@ -215,10 +213,6 @@ if ($gCurrentUser->isAdministratorUsers())
         $formStaticDisplay->addToHtmlPage();
     }
 }
-//#############################################################################
-
-
-
 //#############################################################################
 //  Ausgabe der Menueschalter
 //
