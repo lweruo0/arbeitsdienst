@@ -25,6 +25,8 @@ $config_default['Alter'] = array(
 
 // Anzahl Arbeitsstunden
 $config_default['Stunden'] = array(
+    'WorkingHoursNewbe' => 15,
+    'YearsNewbe' => 2,
     'WorkingHoursWoman' => 5,
     'WorkingHoursMan' => 10,
     'Kosten' => 8

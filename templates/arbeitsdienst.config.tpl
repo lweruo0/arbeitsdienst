@@ -39,6 +39,8 @@
                             <div "class="admidio-form-group row mb-3 >
                                 {include 'sys-template-parts/form.input.tpl' data=$elements['workinghoursman']}
                                 {include 'sys-template-parts/form.input.tpl' data=$elements['workinghourswoman']}
+                                {include 'sys-template-parts/form.input.tpl' data=$elements['workinghoursnewbe']}
+                                {include 'sys-template-parts/form.input.tpl' data=$elements['yearsnewbe']}
                                 {include 'sys-template-parts/form.input.tpl' data=$elements['workinghoursamount']}
                             </div>
                         </div>

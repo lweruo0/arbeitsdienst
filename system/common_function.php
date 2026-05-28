@@ -384,24 +384,36 @@ function list_members_workinfo($members, $datefilteractual)
                                     $passive_roles,
                                     );
     $dt2 = new DateTime(date('d.m.Y', strtotime($datefilteractual . '-12-31')));
+    $stichtag = new DateTime($datefilteractual . '-12-31 23:59:59');
 
     $allWorkingHours = getallworkinghours($datefilteractual);
 
+    $AGEBegin = $pPreferences->config['Alter']['AGEBegin'];
+    $AGEEnd = $pPreferences->config['Alter']['AGEEnd'];
+    $WorkingHoursMan = $pPreferences->config['Stunden']['WorkingHoursMan'];
+    $WorkingHoursWoman = $pPreferences->config['Stunden']['WorkingHoursWoman'];
+    $WorkingHoursNewbe = $pPreferences->config['Stunden']['WorkingHoursNewbe'];
+    $YearsNewbe = $pPreferences->config['Stunden']['YearsNewbe'];
 
     foreach ($members as $member => $memberdata) {
         // Alter jedes Mitglieds berechnen und im Array speichern
         $dt1 = new DateTime($memberdata['BIRTHDAY']);
-        $membersworkinfo[$member]['ALTER'] = $dt1->diff($dt2)->y;
+        $dt_membership_begin = new DateTime($memberdata['mem_begin']);
+        $membersworkinfo[$member]['ALTER'] = $dt1->diff($stichtag)->y;
+        $membersworkinfo[$member]['mitgliedschaftsdauer'] = $dt_membership_begin->diff($stichtag)->y;
 
         if (!isset($passive_members[$member])){
             $membersworkinfo[$member]['PASSIV'] = 'nein';
-            if (($membersworkinfo[$member]['ALTER'] >= $pPreferences->config['Alter']['AGEBegin']) && ($membersworkinfo[$member]['ALTER'] < $pPreferences->config['Alter']['AGEEnd'])) {
-                if ($memberdata['GENDER'] == 1) {
-                    // MÃ¤nner
-                    $membersworkinfo[$member]['Sollstunden'] = $pPreferences->config['Stunden']['WorkingHoursMan'];
+            if (($membersworkinfo[$member]['ALTER'] >= $AGEBegin) && ($membersworkinfo[$member]['ALTER'] < $AGEEnd)) {
+                if (($membersworkinfo[$member]['mitgliedschaftsdauer'] < $YearsNewbe)) {
+                    // Neueinsteiger
+                    $membersworkinfo[$member]['Sollstunden'] = $WorkingHoursNewbe;
+                } elseif ($memberdata['GENDER'] == 1) {
+                    // Männer
+                    $membersworkinfo[$member]['Sollstunden'] = $WorkingHoursMan;
                 } else {
                     // Frauen
-                    $membersworkinfo[$member]['Sollstunden'] = $pPreferences->config['Stunden']['WorkingHoursWoman'];
+                    $membersworkinfo[$member]['Sollstunden'] = $WorkingHoursWoman;
                 }
             } else {
                 $membersworkinfo[$member]['Sollstunden'] = 0;

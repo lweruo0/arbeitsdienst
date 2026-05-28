@@ -52,6 +52,8 @@ try {
             unset($pPreferences->config['Stunden']);
             $pPreferences->config['Stunden']['WorkingHoursMan'] = $_POST['workinghoursman'];
             $pPreferences->config['Stunden']['WorkingHoursWoman'] = $_POST['workinghourswoman'];
+            $pPreferences->config['Stunden']['WorkingHoursNewbe'] = $_POST['workinghoursnewbe'];
+            $pPreferences->config['Stunden']['YearsNewbe'] = $_POST['yearsnewbe'];
             $pPreferences->config['Stunden']['Kosten'] = $_POST['workinghoursamount'];
 
             unset($pPreferences->config['Datum']);
@@ -87,6 +89,8 @@ try {
             unset($pPreferences->config['Stunden']);
             $pPreferences->config['Stunden']['WorkingHoursMan'] = $_POST['WorkingHoursMan'];
             $pPreferences->config['Stunden']['WorkingHoursWoman'] = $_POST['WorkingHoursWoman'];
+            $pPreferences->config['Stunden']['WorkingHoursNewbe'] = $_POST['WorkingHoursNewbe'];
+            $pPreferences->config['Stunden']['YearsNewbe'] = $_POST['YearsNewbe'];
             $pPreferences->config['Stunden']['Kosten'] = $_POST['WorkingHoursAmount'];
 
             // Sprung-url mit den Sprungoptionen speichern

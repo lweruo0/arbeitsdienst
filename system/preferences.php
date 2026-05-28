@@ -107,7 +107,7 @@ try {
                                 $gL10n->get('PLG_ARBEITSDIENST_INPUT_WORKINGHOURS_MAN'), 
                                 $pPreferences->config['Stunden']['WorkingHoursMan'], 
                                 array('type' => 'number',
-                                                'minNumber' => 1,
+                                                'minNumber' => 0,
                                                 'maxNumber' => 100,
                                                 'step' => 1 ));
 
@@ -115,17 +115,32 @@ try {
                                 $gL10n->get('PLG_ARBEITSDIENST_INPUT_WORKINGHOURS_WOMAN'), 
                                 $pPreferences->config['Stunden']['WorkingHoursWoman'], 
                                 array('type' => 'number',
-                                                'minNumber' => 1,
+                                                'minNumber' => 0,
                                                 'maxNumber' => 100,
                                                 'step' => 1 ));
-           
+
+    $formConfigurations->addInput('workinghoursnewbe', 
+                                $gL10n->get('PLG_ARBEITSDIENST_INPUT_WORKINGHOURS_NEWBE'), 
+                                $pPreferences->config['Stunden']['WorkingHoursNewbe'], 
+                                array('type' => 'number',
+                                                'minNumber' => 0,
+                                                'maxNumber' => 100,
+                                                'step' => 1 ));
+    $formConfigurations->addInput('yearsnewbe', 
+                                $gL10n->get('PLG_ARBEITSDIENST_INPUT_YEARS_NEWBE'), 
+                                $pPreferences->config['Stunden']['YearsNewbe']??0, 
+                                array('type' => 'number',
+                                                'minNumber' => 0,
+                                                'maxNumber' => 5,
+                                                'step' => 1 ));
+
     $formConfigurations->addInput('workinghoursamount', 
                                 $gL10n->get('PLG_ARBEITSDIENST_INPUT_WORKINGHOURS_AMOUNT'), 
                                 $pPreferences->config['Stunden']['Kosten'], 
                                 array('type' => 'number',
-                                                        'minNumber' => 0,
-                                                        'maxNumber' => 100,
-                                                        'step' => 0.1));        
+                                                'minNumber' => 0,
+                                                'maxNumber' => 100,
+                                                'step' => 0.1));        
             
 //#############################################################################
 //  Eingabe Fälligkeitsdatum

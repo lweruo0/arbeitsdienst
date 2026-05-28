@@ -521,6 +521,7 @@ if ($getshowOption == 'main')
                         AND         year(pad_date) = \'' . $datefilter[$getdatefilterid] . '\'
                         ORDER BY    pad_date';
 
+    print_r($sqlDataOverview);
     $result = array();
     $result = $gDb->query($sqlDataOverview);
 

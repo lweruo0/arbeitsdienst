@@ -116,6 +116,8 @@
 	<string name="PLG_ARBEITSDIENST_INPUT_WORK">Eingabe Arbeitsdienst</string>
 	<string name="PLG_ARBEITSDIENST_INPUT_WORKINGDATE">Datum</string>
 	<string name="PLG_ARBEITSDIENST_INPUT_WORKINGHOURS_WOMAN">Arbeitsstunden Frauen: </string>
+	<string name="PLG_ARBEITSDIENST_INPUT_WORKINGHOURS_NEWBE">Arbeitsstunden Probezeit: </string>
+	<string name="PLG_ARBEITSDIENST_INPUT_YEARS_NEWBE">Dauer Probezeit: </string>
 	<string name="PLG_ARBEITSDIENST_INPUT_WORKINGHOURS_AMOUNT">Betrag in €: </string>
 	<string name="PLG_ARBEITSDIENST_INPUT_YEAR">Abrechnungsjahr</string>
 
@@ -143,6 +145,8 @@
 	<string name="PLG_ARBEITSDIENST_WORKING">geleistete Stunden</string>
 	<string name="PLG_ARBEITSDIENST_WORKINGHOURS_MAN">Eingabe der zu leistenden Arbeitsstunden für Männer</string>
 	<string name="PLG_ARBEITSDIENST_WORKINGHOURS_WOMAN">Eingabe der zu leistenden Arbeitsstunden für Frauen</string>
+	<string name="PLG_ARBEITSDIENST_WORKINGHOURS_NEWBE">Eingabe der zu leistenden Arbeitsstunden für Neueinsteiger</string>
+	<string name="PLG_ARBEITSDIENST_YEARS_NEWBE">Eingabe der Dauer der Probezeit in Jahren.</string>
 	<string name="PLG_ARBEITSDIENST_WORKINGHOURS_AMOUNT">Eingabe der Kosten einer nicht geleisteten
 		Arbeitsstunde</string>
 	<string name="PLG_ARBEITSDIENST_WITH_PAID">Mit Bezahlt-Datum</string>
