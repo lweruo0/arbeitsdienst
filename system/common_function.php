@@ -234,14 +234,14 @@ function allerollen_einlesen($rollenwahl = '', $with_members = array())
 /*
  * Diese Funktion liefert als Rueckgabe die usr_ids von Rollenangehoerigen.<br/>
  * moegliche Aufrufe:<br/>
- * list_members(array('usf_name_intern1','usf_name_intern2'), array('Rollenname1' => Schalter aktiv/ehem) )<br/>
- * oder list_members(array('usf_name_intern1','usf_name_intern2'), 'Rollenname' )<br/>
- * oder list_members(array('usf_name_intern1','usf_name_intern2'), Schalter aktiv/ehem )<br/>
- * oder list_members(array('p1','p2'), Schalter aktiv/ehem )<br/>
+ * list_members (array('usf_name_intern1','usf_name_intern2'), array('Rollenname1' => Schalter aktiv/ehem) )<br/>
+ * oder list_members (array('usf_name_intern1','usf_name_intern2'), 'Rollenname' )<br/>
+ * oder list_members (array('usf_name_intern1','usf_name_intern2'), Schalter aktiv/ehem )<br/>
+ * oder list_members (array('p1','p2'), Schalter aktiv/ehem )<br/>
  *
  * Schalter aktiv/ehem: 0 = aktive Mitglieder, 1 = ehemalige Mitglieder, ungleich 1 oder 0: alle Mitglieder <br/>
  *
- * Aufruf: z.B. list_members(array('FIRST_NAME','LAST_NAME'), array('Mitglied' => 0,'Administrator' => 0));
+ * Aufruf: z.B. list_members (array('FIRST_NAME','LAST_NAME'), array('Mitglied' => 0,'Administrator' => 0));
  *
  * @param array $fields Array mit usf_name_intern oder p+usfID, z.B. array('FIRST_NAME','p2')
  * @param $calculationyear Jahr, von der dem die Abrechnung gemacht wird
@@ -346,14 +346,14 @@ function list_members($calculationyear, $fields, $rols = array(), $conditions = 
 /*
  * Diese Funktion liefert als Rueckgabe die usr_ids von Rollenangehoerigen.<br/>
  * moegliche Aufrufe:<br/>
- * list_members(array('usf_name_intern1','usf_name_intern2'), array('Rollenname1' => Schalter aktiv/ehem) )<br/>
- * oder list_members(array('usf_name_intern1','usf_name_intern2'), 'Rollenname' )<br/>
- * oder list_members(array('usf_name_intern1','usf_name_intern2'), Schalter aktiv/ehem )<br/>
- * oder list_members(array('p1','p2'), Schalter aktiv/ehem )<br/>
+ * list_members (array('usf_name_intern1','usf_name_intern2'), array('Rollenname1' => Schalter aktiv/ehem) )<br/>
+ * oder list_members (array('usf_name_intern1','usf_name_intern2'), 'Rollenname' )<br/>
+ * oder list_members (array('usf_name_intern1','usf_name_intern2'), Schalter aktiv/ehem )<br/>
+ * oder list_members (array('p1','p2'), Schalter aktiv/ehem )<br/>
  *
  * Schalter aktiv/ehem: 0 = aktive Mitglieder, 1 = ehemalige Mitglieder, ungleich 1 oder 0: alle Mitglieder <br/>
  *
- * Aufruf: z.B. list_members(array('FIRST_NAME','LAST_NAME'), array('Mitglied' => 0,'Administrator' => 0));
+ * Aufruf: z.B. list_members (array('FIRST_NAME','LAST_NAME'), array('Mitglied' => 0,'Administrator' => 0));
  *
  * @param array $fields Array mit usf_name_intern oder p+usfID, z.B. array('FIRST_NAME','p2')
  * @param $calculationyear Jahr, von der dem die Abrechnung gemacht wird
@@ -486,7 +486,7 @@ function list_members_workinfo($members, $datefilteractual)
         $rolename = array();
         foreach ($pPreferences->config['Ausnahme']['passiveRolle'] as $ausnahme => $data) {
             $rolename[$ausnahme] = rolname($data);
-            $passiv = list_members($datefilteractual, array(
+            $passiv = list_members_new($datefilteractual, array(
                 'FIRST_NAME',
                 'LAST_NAME'
             ), array(
