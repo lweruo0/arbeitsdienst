@@ -594,7 +594,7 @@ if ($getshowOption == 'main')
 
     // zu zahlenden Betrag errechnen
     $workingtopay = 0;
-    if ($getinputuser != 0)
+    if (isset($membersworkinfo[$getinputuser]))
     {
         $workingtopay = $membersworkinfo[$getinputuser]['Fehlstunden'] * $pPreferences->config['Stunden']['Kosten'];
     }
@@ -618,7 +618,7 @@ if ($getshowOption == 'main')
                     $gL10n->get('PLG_ARBEITSDIENST_INPUT_RESULT_TOPAY'));
 
     //Ergebnisse ausgeben
-    if ($getinputuser != 0)
+    if (isset($membersworkinfo[$getinputuser]))
     {
         
         $smarty->assign('overview_result_alter', $membersworkinfo[$getinputuser]['ALTER']);
