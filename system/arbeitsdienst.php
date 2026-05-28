@@ -166,7 +166,7 @@ $pPreferences->read(); // Konfigurationsdaten auslesen
 
 
 // alle aktiven Mitglieder einlesen
-$members = list_members($datefilteractual, 
+$members = list_members_new($datefilteractual, 
                         array(
                             'FIRST_NAME',
                             'LAST_NAME',
@@ -361,8 +361,10 @@ if ($getshowOption == 'main')
                                     ORG_ID,
                                     $calculationdate,
                                     $calculationdate);
+    
+    $member_arr = $members[$getUserId] ?? array();
+    $tempname = ($member_arr['LAST_NAME'] ?? '') . ', ' . ($member_arr['FIRST_NAME'] ?? '');
 
-    $tempname = $members[$getUserId]['LAST_NAME'] . ', ' . $members[$getUserId]['FIRST_NAME'];
     //$getinputuser = $getUserId;    
     if ($gCurrentUser->isAdministrator()) 
     {
@@ -380,7 +382,8 @@ if ($getshowOption == 'main')
     }
     else 
     {
-        $tempname = $members[$getUserId]['LAST_NAME'] . ', ' . $members[$getUserId]['FIRST_NAME'];
+        $member_arr = $members[$getUserId] ?? array();
+        $tempname = ($member_arr['LAST_NAME'] ?? '') . ', ' . ($member_arr['FIRST_NAME'] ?? '');
         $getinputuser = $getUserId;
         $form->addSelectBox('plg_arbeitsdienst_input_user', 
                             $gL10n->get('PLG_ARBEITSDIENST_INPUT_USER'), 

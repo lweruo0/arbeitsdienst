@@ -257,100 +257,201 @@ function list_members($calculationyear, $fields, $rols = array(), $conditions = 
     global $gDb, $gProfileFields;
 
     $members = array();
-    $fieldAliases = array();
-    $fieldSelects = array();
-    $fieldJoins = array();
-    $whereConditions = array();
     $calculationdate = date('Y-m-d', strtotime($calculationyear . '-12-31'));
 
-    foreach ($fields as $index => $data) {
-        $key = $data;
-        $usfId = (int) $gProfileFields->getProperty($data, 'usf_id');
+    $sql = 'SELECT DISTINCT mem_usr_id, mem_begin, mem_end
+            FROM ' . TBL_MEMBERS . ', ' . TBL_ROLES . ', ' . TBL_CATEGORIES . ' ';
 
-        if (substr($data, 0, 1) === 'p') {
-            $usfId = (int) substr($data, 1);
-            $key = (string) $usfId;
-        }
-
-        $alias = 'usd_field_' . $index;
-        $fieldAliases[$alias] = $key;
-        $fieldSelects[] = ', ' . $alias . '.usd_value AS ' . $alias;
-        $fieldJoins[] = ' LEFT JOIN ' . TBL_USER_DATA . ' AS ' . $alias . '
-                         ON ' . $alias . '.usd_usr_id = mem.mem_usr_id
-                        AND ' . $alias . '.usd_usf_id = ' . $usfId;
-    }
-
-    if (is_string($rols) && strlen($rols) > 0) {
-        $whereConditions[] = 'mem.mem_rol_id = ' . getRole_IDPAD($rols);
-    } elseif (is_int($rols) && $rols === 0) {
-        $whereConditions[] = 'mem.mem_begin <= \'' . $calculationdate . '\'';
-        $whereConditions[] = 'mem.mem_end >= \'' . $calculationdate . '\'';
-    } elseif (is_int($rols) && $rols === 1) {
-        $whereConditions[] = '((mem.mem_begin > \'' . $calculationdate . '\') OR (mem.mem_end < \'' . $calculationdate . '\'))';
-    } elseif (is_array($rols) && count($rols) > 0) {
-        $roleConditions = array();
-
-        foreach ($rols as $rol => $rolSwitch) {
-            $singleRoleConditions = array(
-                'mem.mem_rol_id = ' . getRole_IDPAD($rol)
-            );
-
-            if ((int) $rolSwitch === 0) {
-                $singleRoleConditions[] = 'mem.mem_begin <= \'' . $calculationdate . '\'';
-                $singleRoleConditions[] = 'mem.mem_end >= \'' . $calculationdate . '\'';
-            } elseif ((int) $rolSwitch === 1) {
-                $singleRoleConditions[] = '((mem.mem_begin > \'' . $calculationdate . '\') OR (mem.mem_end < \'' . $calculationdate . '\'))';
+    if (is_string($rols)) {
+        $sql .= ' WHERE mem_rol_id = ' . getRole_IDPAD($rols) . ' ';
+    } elseif (is_int($rols) && ($rols == 0)) {
+        // nur aktive Mitglieder
+        $sql .= ' WHERE mem_begin <= \'' . $calculationdate . '\' ';
+        $sql .= ' AND mem_end >= \'' . $calculationdate . '\' ';
+    } elseif (is_int($rols) && ($rols == 1)) {
+        // nicht-aktive Mitglieder ALT:nur ehemalige Mitglieder
+        $sql .= ' WHERE ( (mem_begin > \'' . $calculationdate . '\') OR (mem_end < \'' . $calculationdate . '\') )';
+    } elseif (is_array($rols)) {
+        $firstpass = true;
+        foreach ($rols as $rol => $rol_switch) {
+            if ($firstpass) {
+                $sql .= ' WHERE (( ';
+            } else {
+                $sql .= ' OR ( ';
             }
+            $sql .= 'mem_rol_id = ' . getRole_IDPAD($rol) . ' ';
 
-            $roleConditions[] = '(' . implode(' AND ', $singleRoleConditions) . ')';
+            if ($rol_switch == 0) {
+                // aktive Mitglieder
+                $sql .= ' AND mem_begin <= \'' . $calculationdate . '\' ';
+                $sql .= ' AND mem_end >= \'' . $calculationdate . '\' ';
+            } elseif ($rol_switch == 1) {
+                // nicht aktive Mitglieder ALT: ehemalige Mitglieder
+                $sql .= ' AND ( (mem_begin > \'' . $calculationdate . '\') OR (mem_end < \'' . $calculationdate . '\') )';
+            }
+            $sql .= ' ) ';
+            $firstpass = false;
         }
-
-        if (count($roleConditions) > 0) {
-            $whereConditions[] = '(' . implode(' OR ', $roleConditions) . ')';
-        }
+        $sql .= ' ) ';
     }
 
-    $conditions = trim($conditions);
-    if (strlen($conditions) > 0) {
-        $conditions = preg_replace('/^(AND|WHERE)\s+/i', '', $conditions);
-        if (strlen($conditions) > 0) {
-            $whereConditions[] = '(' . $conditions . ')';
-        }
-    }
-
-    $whereConditions[] = 'rol.rol_valid = 1';
-    $whereConditions[] = 'rol.rol_cat_id = cat.cat_id';
-    $whereConditions[] = '(cat.cat_org_id = ' . ORG_ID . ' OR cat.cat_org_id IS NULL)';
-
-    $sql = 'SELECT DISTINCT mem.mem_usr_id, mem.mem_begin, mem.mem_end'
-         . implode('', $fieldSelects) . '
-              FROM ' . TBL_MEMBERS . ' AS mem
-        INNER JOIN ' . TBL_ROLES . ' AS rol
-                ON mem.mem_rol_id = rol.rol_id
-        INNER JOIN ' . TBL_CATEGORIES . ' AS cat
-                ON rol.rol_cat_id = cat.cat_id'
-         . implode('', $fieldJoins);
-
-    if (count($whereConditions) > 0) {
-        $sql .= '\n             WHERE ' . implode('\n               AND ', $whereConditions);
-    }
-
-    $sql .= '\n          ORDER BY mem.mem_usr_id ASC';
+    $sql .= $conditions;
+    $sql .= ' AND mem_rol_id = rol_id
+              AND rol_valid  = 1
+              AND rol_cat_id = cat_id
+              AND (  cat_org_id = ' . ORG_ID . '
+              OR cat_org_id IS NULL )
+              ORDER BY mem_usr_id ASC ';
 
     $statement = $gDb->query($sql);
-    while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
-        $memberId = (int) $row['mem_usr_id'];
-
-        $members[$memberId] = array(
+    $anzahl_members = $statement -> rowCount();
+    while ($row = $statement->fetch()) {
+        // mem_begin und mem_end werden nur in der recalculation.php ausgewertet
+        // wird fuer anteilige Beitragsberechnung verwendet
+        $members[$row['mem_usr_id']] = array(
             'mem_begin' => $row['mem_begin'],
             'mem_end' => $row['mem_end']
         );
-
-        foreach ($fieldAliases as $alias => $key) {
-            $members[$memberId][$key] = isset($row[$alias]) ? $row[$alias] : '';
-        }
     }
 
+    foreach ($members as $member => $dummy) {
+        foreach ($fields as $field => $data) {
+            $key = $data;
+            $usfID = $gProfileFields->getProperty($data, 'usf_id');
+
+            if (substr($data, 0, 1) == 'p') {
+                $usfID = substr($data, 1);
+                $key = $usfID;
+            }
+
+            $sql = 'SELECT usd_value
+                      FROM ' . TBL_USER_DATA . '
+                     WHERE usd_usr_id = ' . $member . '
+                       AND usd_usf_id = ' . $usfID . ' ';
+            $statement = $gDb->query($sql);
+            $row = $statement->fetch();
+            if ($row == false)
+            {
+                $members[$member][$key] = '';
+            }
+            else
+            {
+                $members[$member][$key] = $row['usd_value'];
+            }
+        }
+    }
+    return $members;
+}
+
+/*
+ * Diese Funktion liefert als Rueckgabe die usr_ids von Rollenangehoerigen.<br/>
+ * moegliche Aufrufe:<br/>
+ * list_members(array('usf_name_intern1','usf_name_intern2'), array('Rollenname1' => Schalter aktiv/ehem) )<br/>
+ * oder list_members(array('usf_name_intern1','usf_name_intern2'), 'Rollenname' )<br/>
+ * oder list_members(array('usf_name_intern1','usf_name_intern2'), Schalter aktiv/ehem )<br/>
+ * oder list_members(array('p1','p2'), Schalter aktiv/ehem )<br/>
+ *
+ * Schalter aktiv/ehem: 0 = aktive Mitglieder, 1 = ehemalige Mitglieder, ungleich 1 oder 0: alle Mitglieder <br/>
+ *
+ * Aufruf: z.B. list_members(array('FIRST_NAME','LAST_NAME'), array('Mitglied' => 0,'Administrator' => 0));
+ *
+ * @param array $fields Array mit usf_name_intern oder p+usfID, z.B. array('FIRST_NAME','p2')
+ * @param $calculationyear Jahr, von der dem die Abrechnung gemacht wird
+ * @param array/string/bool $rols Array mit Rollen, z.B. <br/>
+ * array('Rollenname1' => Schalter aktiv/ehem) )<br/>
+ * oder 'Rollenname' <br/>
+ * oder Schalter aktiv/ehem <br/>
+ * @param string $conditions SQL-String als zusaetzlicher Filter von $members, z.B. 'AND usd_usf_id = 78'
+ * @return array $members
+ */
+function list_members_new($calculationyear, $fields, $rols = array(), $conditions = '')
+{
+    global $gDb, $gProfileFields;
+
+    $members = array();
+    $calculationdate = date('Y-m-d', strtotime($calculationyear . '-12-31'));
+
+    $sql = 'SELECT DISTINCT mem_usr_id, mem_begin, mem_end
+            FROM ' . TBL_MEMBERS . ', ' . TBL_ROLES . ', ' . TBL_CATEGORIES . ' ';
+
+    if (is_string($rols)) {
+        $sql .= ' WHERE mem_rol_id = ' . getRole_IDPAD($rols) . ' ';
+    } elseif (is_int($rols) && ($rols == 0)) {
+        // nur aktive Mitglieder
+        $sql .= ' WHERE mem_begin <= \'' . $calculationdate . '\' ';
+        $sql .= ' AND mem_end >= \'' . $calculationdate . '\' ';
+    } elseif (is_int($rols) && ($rols == 1)) {
+        // nicht-aktive Mitglieder ALT:nur ehemalige Mitglieder
+        $sql .= ' WHERE ( (mem_begin > \'' . $calculationdate . '\') OR (mem_end < \'' . $calculationdate . '\') )';
+    } elseif (is_array($rols)) {
+        $firstpass = true;
+        foreach ($rols as $rol => $rol_switch) {
+            if ($firstpass) {
+                $sql .= ' WHERE (( ';
+            } else {
+                $sql .= ' OR ( ';
+            }
+            $sql .= 'mem_rol_id = ' . getRole_IDPAD($rol) . ' ';
+
+            if ($rol_switch == 0) {
+                // aktive Mitglieder
+                $sql .= ' AND mem_begin <= \'' . $calculationdate . '\' ';
+                $sql .= ' AND mem_end >= \'' . $calculationdate . '\' ';
+            } elseif ($rol_switch == 1) {
+                // nicht aktive Mitglieder ALT: ehemalige Mitglieder
+                $sql .= ' AND ( (mem_begin > \'' . $calculationdate . '\') OR (mem_end < \'' . $calculationdate . '\') )';
+            }
+            $sql .= ' ) ';
+            $firstpass = false;
+        }
+        $sql .= ' ) ';
+    }
+
+    $sql .= $conditions;
+    $sql .= ' AND mem_rol_id = rol_id
+              AND rol_valid  = 1
+              AND rol_cat_id = cat_id
+              AND (  cat_org_id = ' . ORG_ID . '
+              OR cat_org_id IS NULL )
+              ORDER BY mem_usr_id ASC ';
+
+    $statement = $gDb->query($sql);
+    $anzahl_members = $statement -> rowCount();
+    while ($row = $statement->fetch()) {
+        // mem_begin und mem_end werden nur in der recalculation.php ausgewertet
+        // wird fuer anteilige Beitragsberechnung verwendet
+        $members[$row['mem_usr_id']] = array(
+            'mem_begin' => $row['mem_begin'],
+            'mem_end' => $row['mem_end']
+        );
+    }
+
+    foreach ($members as $member => $dummy) {
+        foreach ($fields as $field => $data) {
+            $key = $data;
+            $usfID = $gProfileFields->getProperty($data, 'usf_id');
+
+            if (substr($data, 0, 1) == 'p') {
+                $usfID = substr($data, 1);
+                $key = $usfID;
+            }
+
+            $sql = 'SELECT usd_value
+                      FROM ' . TBL_USER_DATA . '
+                     WHERE usd_usr_id = ' . $member . '
+                       AND usd_usf_id = ' . $usfID . ' ';
+            $statement = $gDb->query($sql);
+            $row = $statement->fetch();
+            if ($row == false)
+            {
+                $members[$member][$key] = '';
+            }
+            else
+            {
+                $members[$member][$key] = $row['usd_value'];
+            }
+        }
+    }
     return $members;
 }
 
